@@ -70,10 +70,30 @@ def _protected_paths(config: AppConfig) -> tuple[tuple[Path, ...], tuple[Path, .
     return exact, subtrees
 
 
+def _validate_test_sandbox(config: AppConfig) -> None:
+    """Не дать тестовому режиму читать и писать вне test_root."""
+
+    if not config.test_mode:
+        return
+    root = config.test_root
+    if root is None:
+        raise ValueError("test_mode требует явного test_root")
+    if root == Path("/"):
+        raise ValueError("test_root не может быть корнем файловой системы")
+    for label, path in (
+        ("home", config.home),
+        ("data_home", config.data_home),
+        ("state_home", config.state_home),
+    ):
+        if path != root and not path.is_relative_to(root):
+            raise ValueError(
+                f"test_mode: {label} находится вне test_root: {path}"
+            )
+
+
 def create_app(config: AppConfig | None = None) -> FastAPI:
     config = config or AppConfig.from_env()
-    if config.test_mode and config.test_root is None:
-        raise ValueError("test_mode требует явного test_root")
+    _validate_test_sandbox(config)
 
     rules = default_rules(config.home, config.data_home)
     mapping = rules_by_id(rules)

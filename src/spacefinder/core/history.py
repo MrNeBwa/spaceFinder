@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import errno
 import json
 import os
 import threading
@@ -20,11 +21,20 @@ class HistoryLog:
         line = json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n"
         with self._lock:
             self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-            fd = os.open(
-                self.path,
-                os.O_WRONLY | os.O_CREAT | os.O_APPEND,
-                0o600,
-            )
+            flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
+            # Не писать аудит через подменённый симлинк: файл должен
+            # оставаться внутри state_home.
+            flags |= getattr(os, "O_NOFOLLOW", 0)
+            try:
+                fd = os.open(self.path, flags, 0o600)
+            except OSError as exc:
+                if exc.errno == errno.ELOOP:
+                    raise OSError(
+                        errno.ELOOP,
+                        "Файл аудита не должен быть символической ссылкой: "
+                        f"{self.path}",
+                    ) from exc
+                raise
             with contextlib.suppress(OSError):
                 os.chmod(self.path, 0o600)
             try:

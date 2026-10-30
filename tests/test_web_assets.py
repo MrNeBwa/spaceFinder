@@ -41,3 +41,10 @@ def test_styles_have_focus_and_reduced_motion() -> None:
 
     assert ":focus-visible" in css
     assert "prefers-reduced-motion" in css
+
+
+def test_delete_response_is_ignored_after_a_new_scan() -> None:
+    script = (WEB / "app.js").read_text(encoding="utf-8")
+
+    assert "const scanId = state.scanId" in script
+    assert "if (state.scanId !== scanId) return;" in script

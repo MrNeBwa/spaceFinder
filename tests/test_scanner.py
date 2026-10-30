@@ -325,3 +325,26 @@ def test_timeout_marks_results_truncated(tmp_path: Path) -> None:
     session = run_scan((make_rule("cache", cache),), max_seconds=1e-12)
 
     assert session.progress.truncated is True
+
+
+def test_timeout_after_measure_does_not_add_partial_item(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cache = tmp_path / ".cache"
+    (cache / "pip").mkdir(parents=True)
+    now = [0.0]
+
+    def slow_measure(*_args, **_kwargs):
+        now[0] = 200.0
+        return 100, 100
+
+    monkeypatch.setattr("spacefinder.core.scanner.measure_path", slow_measure)
+
+    session = run_scan(
+        (make_rule("cache", cache),),
+        max_seconds=100,
+        clock=lambda: now[0],
+    )
+
+    assert session.items == {}
+    assert session.progress.truncated is True

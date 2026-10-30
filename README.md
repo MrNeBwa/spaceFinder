@@ -75,8 +75,11 @@ python -m spacefinder scan --json         # сканирование без се
 - Сервер принимает только `127.0.0.1`/`localhost`; это проверяется и в
   `AppConfig`, и в CLI.
 - История операций пишется в `~/.local/state/spacefinder/audit.jsonl` с правами
-  `0600`; имена файлов, не являющиеся UTF-8, не ломают JSON (в UI они
-  показываются с заменой `U+FFFD`).
+  `0600` и не открывается через симлинк; имена файлов, не являющиеся UTF-8,
+  не ломают JSON (в UI они показываются с заменой `U+FFFD`).
+- В `SPACEFINDER_TEST_MODE=1` каталоги `home`, `data_home` и `state_home`
+  обязаны находиться внутри `SPACEFINDER_TEST_ROOT`, иначе приложение не
+  стартует. Это исключает случайное чтение или запись в реальный `$HOME`.
 - Файловые операции удаления не держат `session.lock`, поэтому список
   результатов и отмена скана остаются отзывчивыми; параллельное удаление
   в одной сессии возвращает `409 delete_in_progress`.
@@ -116,7 +119,7 @@ python -m pytest -q   # или pytest -q, если команда доступн
 Полный локальный прогон:
 
 ```bash
-python -m pytest -q
+python -m pytest -q --cov=spacefinder --cov-report=term-missing
 ruff check src tests
 mypy src
 python -m build

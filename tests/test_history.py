@@ -3,6 +3,8 @@ from __future__ import annotations
 import stat
 from pathlib import Path
 
+import pytest
+
 from spacefinder.core.history import HistoryLog
 
 
@@ -48,3 +50,15 @@ def test_tail_limit_returns_last_records(tmp_path: Path) -> None:
     entries = log.tail(2)
 
     assert [entry["index"] for entry in entries] == [3, 4]
+
+
+def test_audit_refuses_symlink(tmp_path: Path) -> None:
+    target = tmp_path / "target.jsonl"
+    target.write_text("safe\n", encoding="utf-8")
+    link = tmp_path / "audit.jsonl"
+    link.symlink_to(target)
+
+    with pytest.raises(OSError, match="символической ссылкой"):
+        HistoryLog(link).append({"status": "deleted"})
+
+    assert target.read_text(encoding="utf-8") == "safe\n"

@@ -278,6 +278,11 @@ class Scanner:
                     if session.cancel_event.is_set():
                         stop_reason = "cancelled"
                         break
+                    # measure_path мог вернуть частичный размер уже после
+                    # дедлайна: такой пункт не должен попадать в выдачу.
+                    if deadline is not None and self._clock() > deadline:
+                        stop_reason = "timeout"
+                        break
 
                     # Абсолютный путь, а не relative_to(root): у правила
                     # может быть несколько корней, и одинаковые имена в них

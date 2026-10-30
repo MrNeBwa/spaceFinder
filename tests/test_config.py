@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from spacefinder.app import create_app
 from spacefinder.config import AppConfig
 
 
@@ -54,3 +55,41 @@ def test_paths_are_resolved_to_absolute(tmp_path: Path) -> None:
 def test_max_items_has_an_upper_bound() -> None:
     with pytest.raises(ValueError, match="100000"):
         AppConfig(max_items=100_001)
+
+
+def test_test_mode_requires_test_root(tmp_path: Path) -> None:
+    config = AppConfig(
+        home=tmp_path,
+        data_home=tmp_path,
+        state_home=tmp_path,
+        test_mode=True,
+    )
+
+    with pytest.raises(ValueError, match="test_root"):
+        create_app(config)
+
+
+def test_test_mode_rejects_paths_outside_sandbox(tmp_path: Path) -> None:
+    config = AppConfig(
+        home=tmp_path / "home",
+        data_home=tmp_path / "data",
+        state_home=tmp_path / "state",
+        test_mode=True,
+        test_root=tmp_path / "sandbox",
+    )
+
+    with pytest.raises(ValueError, match="test_mode"):
+        create_app(config)
+
+
+def test_test_root_cannot_be_filesystem_root(tmp_path: Path) -> None:
+    config = AppConfig(
+        home=tmp_path,
+        data_home=tmp_path,
+        state_home=tmp_path,
+        test_mode=True,
+        test_root=Path("/"),
+    )
+
+    with pytest.raises(ValueError, match="test_root"):
+        create_app(config)

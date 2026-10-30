@@ -36,7 +36,7 @@ jobs:
         run: |
           export HOME="$(mktemp -d)"
           touch "$HOME/canary"
-          python -m pytest -q
+          python -m pytest -q --cov=spacefinder --cov-report=term-missing
           test -f "$HOME/canary"
 
       - name: Build wheel

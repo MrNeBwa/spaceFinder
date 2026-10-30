@@ -507,16 +507,20 @@ function openConfirm(mode) {
 }
 
 async function performDelete(mode, ids) {
-  if (!state.scanId) {
+  const scanId = state.scanId;
+  if (!scanId) {
     showError(new Error("Сессия сканирования не найдена, запустите сканирование заново"));
     return;
   }
   setStatus("");
   try {
-    const response = await api(`/api/scans/${state.scanId}/delete`, {
+    const response = await api(`/api/scans/${scanId}/delete`, {
       method: "POST",
       body: JSON.stringify({ item_ids: ids, mode, confirm: true }),
     });
+    // Пока шёл запрос, пользователь мог запустить новый скан. Нельзя
+    // применять результат старой сессии к новому списку.
+    if (state.scanId !== scanId) return;
 
     let ok = 0;
     for (const result of response.results) {
