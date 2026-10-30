@@ -37,6 +37,35 @@ def test_safe_rmtree_refuses_nested_mount(
     assert target.exists()
 
 
+def test_has_nested_mount_fails_closed_on_walk_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cache = tmp_path / "home" / ".cache"
+    target = cache / "big"
+    nested = target / "locked"
+    nested.mkdir(parents=True)
+    policy = PathPolicy(
+        allowed_roots=[cache],
+        protected=[tmp_path / "home"],
+        test_root=tmp_path,
+    )
+
+    real_scandir = os.scandir
+
+    def failing_scandir(path: object):
+        if Path(path) == nested:
+            raise PermissionError(errno.EACCES, "denied")
+        return real_scandir(path)
+
+    monkeypatch.setattr(os, "scandir", failing_scandir)
+
+    with pytest.raises(OSError):
+        fsops.has_nested_mount(target)
+    with pytest.raises(OSError):
+        fsops.safe_rmtree(target, policy)
+    assert target.exists()
+
+
 def test_safe_unlink_removes_symlink_not_target(tmp_path: Path) -> None:
     cache = tmp_path / "home" / ".cache"
     cache.mkdir(parents=True)

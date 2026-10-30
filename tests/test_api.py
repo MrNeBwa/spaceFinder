@@ -77,6 +77,39 @@ def test_scan_and_dry_run_delete(client: TestClient) -> None:
     assert history.json()["entries"][-1]["status"] == "simulated"
 
 
+def test_non_utf8_filename_is_serialized_and_audited(client: TestClient) -> None:
+    """Имена с surrogateescape не должны ронять JSON-ответы и аудит."""
+
+    cache = client.app.state.config.home / ".cache"
+    raw = os.fsencode(str(cache)) + b"/bad-\xff"
+    fd = os.open(raw, os.O_CREAT | os.O_WRONLY, 0o600)
+    try:
+        os.write(fd, b"x" * 100)
+    finally:
+        os.close(fd)
+    timestamp = time.time() - 40 * 86_400
+    os.utime(raw, (timestamp, timestamp))
+
+    scan = start_scan(client)
+
+    assert scan["status"] == "done"
+    assert len(scan["items"]) == 1
+    item = scan["items"][0]
+    assert "\ufffd" in item["path"]
+
+    response = client.post(
+        f"/api/scans/{scan['scan_id']}/delete",
+        json={"item_ids": [item["id"]], "mode": "trash", "confirm": True},
+        headers=auth(client),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["results"][0]["status"] == "simulated"
+
+    history = client.get("/api/history", headers=auth(client))
+    assert history.status_code == 200, history.text
+    assert "\ufffd" in history.json()["entries"][-1]["path"]
+
+
 def test_delete_requires_confirmation(client: TestClient) -> None:
     setup_cache(client)
     scan = start_scan(client)

@@ -39,7 +39,7 @@ class TrashService:
         # параллельных удаления могут выбрать одно и то же имя.
         self._lock = threading.Lock()
 
-    def _ensure_dirs(self) -> None:
+    def _check_layout(self) -> None:
         for directory in (self.trash_dir, self.files_dir, self.info_dir):
             # Симлинк на чужой каталог превратил бы корзину в способ
             # писать/удалять данные вне $XDG_DATA_HOME.
@@ -48,6 +48,10 @@ class TrashService:
                     "protected_path",
                     f"Каталог корзины не должен быть символической ссылкой: {directory}",
                 )
+
+    def _ensure_dirs(self) -> None:
+        self._check_layout()
+        for directory in (self.trash_dir, self.files_dir, self.info_dir):
             directory.mkdir(parents=True, exist_ok=True, mode=0o700)
             try:
                 if not directory.is_symlink():
@@ -156,6 +160,7 @@ class TrashService:
         корзины не освободило бы место и оставило бы метаданные.
         """
 
+        self._check_layout()
         target = self.policy.ensure_deletable(path)
         files = Path(os.path.realpath(self.files_dir))
         resolved = Path(os.path.realpath(target))

@@ -19,6 +19,7 @@ from .api.errors import ApiError
 from .api.routes import router
 from .config import AppConfig
 from .core.deleter import DeleteService
+from .core.format import safe_json, safe_text
 from .core.history import HistoryLog
 from .core.path_policy import PathPolicy
 from .core.rules import default_rules, rules_by_id
@@ -182,7 +183,9 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
                 "error": {
                     "code": "invalid_request",
                     "message": "Некорректный запрос",
-                    "details": {"errors": jsonable_encoder(exc.errors())},
+                    "details": {
+                        "errors": safe_json(jsonable_encoder(exc.errors()))
+                    },
                 }
             },
         )
@@ -197,7 +200,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
             content={
                 "error": {
                     "code": code,
-                    "message": str(exc.detail),
+                    "message": safe_text(str(exc.detail)),
                     "details": {},
                 }
             },

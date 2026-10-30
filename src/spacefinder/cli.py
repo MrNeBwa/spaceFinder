@@ -13,7 +13,7 @@ from typing import Any
 
 from . import __version__
 from .config import AppConfig
-from .core.format import display_path, human_bytes
+from .core.format import display_path, human_bytes, safe_text
 from .core.models import Progress, ScanSession, ScanStatus
 
 
@@ -125,7 +125,7 @@ def _scan(args: argparse.Namespace) -> int:
                 return 2
         scanner.scan(session, args.rules)
     except Exception as exc:  # CLI должен вернуть код, а не traceback
-        print(f"Ошибка сканирования: {exc}", file=sys.stderr)
+        print(f"Ошибка сканирования: {safe_text(str(exc))}", file=sys.stderr)
         return 1
     finally:
         app.state.manager.shutdown()

@@ -87,7 +87,9 @@ class DeleteService:
         }
         try:
             self.history.append(record)
-        except OSError:
+        except Exception:
+            # Аудит важен, но его сбой не должен превращать уже выполненное
+            # удаление в ошибку и обрывать обработку остальных пунктов.
             logger.exception("Не удалось записать аудит для %s", item.path)
 
     def _delete_one(

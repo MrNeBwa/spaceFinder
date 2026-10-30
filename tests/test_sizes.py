@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from spacefinder.core.format import display_path, human_bytes
+from spacefinder.core.format import display_path, human_bytes, safe_text
 from spacefinder.core.scanner import measure_path
 
 
@@ -20,6 +20,20 @@ def test_display_path(tmp_path: Path) -> None:
     assert display_path(home, home) == "~"
     assert display_path(home / ".cache" / "pip", home) == "~/.cache/pip"
     assert display_path(Path("/var/cache"), home) == "/var/cache"
+
+
+def test_safe_text_replaces_surrogates() -> None:
+    assert safe_text("bad\udcffname") == "bad\ufffdname"
+
+
+def test_display_path_replaces_surrogates(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    path = home / ".cache" / "bad\udcff"
+
+    rendered = display_path(path, home)
+
+    assert "\ufffd" in rendered
+    assert "\udcff" not in rendered
 
 
 def test_measure_file(tmp_path: Path) -> None:

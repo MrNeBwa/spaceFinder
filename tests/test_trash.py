@@ -193,6 +193,32 @@ def test_safe_move_falls_back_on_exdev(
     assert destination.read_text(encoding="utf-8") == "data"
 
 
+def test_expunge_refuses_symlinked_trash_files(tmp_path: Path) -> None:
+    cache = tmp_path / "home" / ".cache"
+    cache.mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    trash_root = tmp_path / "data" / "Trash"
+    trash_root.mkdir(parents=True)
+    (trash_root / "files").symlink_to(outside, target_is_directory=True)
+
+    item = outside / "old"
+    item.mkdir()
+    (item / "blob").write_text("x", encoding="utf-8")
+
+    policy = PathPolicy(
+        allowed_roots=[cache, trash_root / "files"],
+        protected=[tmp_path / "home"],
+        test_root=tmp_path,
+    )
+    service = TrashService(tmp_path / "data", policy)
+
+    with pytest.raises(ProtectedPathError):
+        service.expunge(item)
+
+    assert item.exists()
+
+
 def test_trash_refuses_symlinked_trash_directory(tmp_path: Path) -> None:
     cache = tmp_path / "home" / ".cache"
     cache.mkdir(parents=True)

@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
 
 from ..core.deleter import DeleteValidationError
-from ..core.format import display_path
+from ..core.format import display_path, safe_json, safe_text
 from .errors import ApiError
 from .schemas import (
     ConfigOut,
@@ -54,7 +54,7 @@ def get_config(request: Request) -> ConfigOut:
         dry_run=config.dry_run,
         allow_permanent=config.allow_permanent,
         version=request.app.state.version,
-        home=str(config.home),
+        home=safe_text(str(config.home)),
     )
 
 
@@ -150,7 +150,7 @@ def get_scan(request: Request, scan_id: str) -> ScanOut:
             else "",
             truncated=session.progress.truncated,
         )
-        warnings = list(session.warnings)
+        warnings = [safe_text(warning) for warning in session.warnings]
 
     item_outs = [
         ItemOut(
@@ -164,7 +164,7 @@ def get_scan(request: Request, scan_id: str) -> ScanOut:
             apparent_bytes=item.apparent_bytes,
             mtime=item.mtime,
             default_selected=mapping[item.rule_id].default_selected,
-            warnings=list(item.warnings),
+            warnings=[safe_text(warning) for warning in item.warnings],
             deleted=item.id in deleted_ids,
             in_trash=request.app.state.trash.contains(item.path),
         )
@@ -226,12 +226,14 @@ def delete_items(
     return DeleteResponse(
         results=[
             DeleteResultOut(
-                item_id=result.item_id,
+                item_id=safe_text(result.item_id),
                 status=result.status,
                 freed_bytes=result.freed_bytes,
-                target=result.target,
-                error_code=result.error_code,
-                message=result.message,
+                target=safe_text(result.target) if result.target is not None else None,
+                error_code=safe_text(result.error_code)
+                if result.error_code is not None
+                else None,
+                message=safe_text(result.message) if result.message is not None else None,
             )
             for result in results
         ],
@@ -249,4 +251,4 @@ def get_history(
     limit: int = Query(default=50, ge=1, le=200),
 ) -> HistoryResponse:
     entries = request.app.state.history.tail(limit)
-    return HistoryResponse(entries=entries)
+    return HistoryResponse(entries=[safe_json(entry) for entry in entries])

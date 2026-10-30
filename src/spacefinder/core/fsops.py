@@ -29,15 +29,29 @@ def safe_move(src: Path, dst: Path, policy: PathPolicy) -> None:
         shutil.move(str(source), str(destination))
 
 
+def _raise_walk_error(error: OSError) -> None:
+    """Не пропускать каталоги, которые не удалось прочитать.
+
+    Иначе точка монтирования внутри недоступного каталога останется
+    незамеченной, и ``shutil.rmtree`` может зайти в чужой раздел.
+    """
+
+    raise error
+
+
 def has_nested_mount(path: Path) -> bool:
     """Есть ли внутри каталога точка монтирования.
 
     ``shutil.rmtree`` иначе зайдёт в неё и удалит данные другого раздела.
+    Ошибки обхода пробрасываются: лучше отказаться от удаления, чем
+    удалить больше, чем проверили.
     """
 
     if path.is_symlink() or not path.is_dir():
         return False
-    for root, directories, _ in os.walk(path, followlinks=False):
+    for root, directories, _ in os.walk(
+        path, followlinks=False, onerror=_raise_walk_error
+    ):
         for name in directories:
             if os.path.ismount(Path(root) / name):
                 return True

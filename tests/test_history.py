@@ -29,6 +29,16 @@ def test_malformed_lines_are_skipped(tmp_path: Path) -> None:
     assert [entry["status"] for entry in entries] == ["deleted", "trashed"]
 
 
+def test_audit_handles_non_utf8_strings(tmp_path: Path) -> None:
+    path = tmp_path / "audit.jsonl"
+    log = HistoryLog(path)
+    log.append({"path": "bad\udcff"})
+
+    entries = log.tail(1)
+
+    assert entries[0]["path"] == "bad\udcff"
+
+
 def test_tail_limit_returns_last_records(tmp_path: Path) -> None:
     path = tmp_path / "audit.jsonl"
     log = HistoryLog(path)

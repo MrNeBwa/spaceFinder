@@ -334,3 +334,26 @@ def test_audit_log_written(tmp_path: Path, cache: Path, policy: PathPolicy) -> N
     assert len(entries) == 1
     assert entries[0]["status"] == "simulated"
     assert entries[0]["path"] == str(path)
+
+
+def test_audit_failure_does_not_abort_deletion(
+    tmp_path: Path,
+    cache: Path,
+    policy: PathPolicy,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = cache / "pip"
+    path.mkdir()
+    item = make_item(path)
+    service = make_service(tmp_path, policy, FakeTrash(), dry_run=True)
+
+    def failing_append(_record: dict[str, object]) -> None:
+        raise ValueError("audit is read-only")
+
+    monkeypatch.setattr(service.history, "append", failing_append)
+
+    results = service.delete(
+        make_session([item]), [item.id], DeleteMode.TRASH, True
+    )
+
+    assert results[0].status is DeleteStatus.SIMULATED

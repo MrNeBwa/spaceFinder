@@ -28,7 +28,11 @@ class HistoryLog:
             with contextlib.suppress(OSError):
                 os.chmod(self.path, 0o600)
             try:
-                handle = os.fdopen(fd, "a", encoding="utf-8")
+                # backslashreplace не даёт упасть на surrogateescape-именах:
+                # они попадут в JSON как \udcff и корректно прочитаются.
+                handle = os.fdopen(
+                    fd, "a", encoding="utf-8", errors="backslashreplace"
+                )
             except Exception:
                 # fdopen не забрал дескриптор — закрываем его сами.
                 os.close(fd)

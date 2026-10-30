@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..core.format import safe_json, safe_text
+
 
 class ApiError(Exception):
     def __init__(
@@ -22,8 +24,8 @@ class ApiError(Exception):
     def as_body(self) -> dict[str, Any]:
         return {
             "error": {
-                "code": self.code,
-                "message": self.message,
-                "details": self.details,
+                "code": safe_text(self.code),
+                "message": safe_text(self.message),
+                "details": safe_json(self.details),
             }
         }

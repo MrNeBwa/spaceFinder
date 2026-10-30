@@ -196,6 +196,22 @@ def test_missing_root_is_not_an_error(tmp_path: Path) -> None:
     assert session.items == {}
 
 
+def test_same_relative_name_in_two_roots_gets_unique_ids(tmp_path: Path) -> None:
+    first_root = tmp_path / "root-a"
+    second_root = tmp_path / "root-b"
+    (first_root / "same").mkdir(parents=True)
+    (second_root / "same").mkdir(parents=True)
+
+    rule = make_rule("multi", first_root, roots=(first_root, second_root))
+    session = run_scan((rule,))
+
+    assert len(session.items) == 2
+    assert {str(item.path) for item in session.items.values()} == {
+        str(first_root / "same"),
+        str(second_root / "same"),
+    }
+
+
 def test_same_path_from_two_rules_is_counted_once(tmp_path: Path) -> None:
     cache = tmp_path / ".cache"
     pip = cache / "pip"

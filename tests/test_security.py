@@ -21,6 +21,27 @@ def test_valid_token_accepted(client: TestClient) -> None:
     assert response.status_code == 200
 
 
+def test_non_ascii_token_is_rejected_without_crashing(client: TestClient) -> None:
+    # httpx не отправляет non-ASCII str в заголовке, поэтому передаём байты.
+    response = client.get(
+        "/api/config",
+        headers={"X-Spacefinder-Token": "не-токен".encode()},
+    )
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "unauthorized"
+
+
+def test_non_utf8_rule_id_returns_400(client: TestClient) -> None:
+    response = client.post(
+        "/api/scans",
+        content=b'{"rule_ids":["bad\\udcff"]}',
+        headers={**auth(client), "Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 400, response.text
+    assert response.json()["error"]["code"] == "invalid_request"
+
+
 def test_bad_host_rejected(client: TestClient) -> None:
     response = client.get("/api/health", headers={"Host": "evil.example"})
     assert response.status_code == 400

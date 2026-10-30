@@ -10,6 +10,7 @@ import time
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
+from .format import safe_text
 from .models import (
     Item,
     ItemKind,
@@ -24,7 +25,7 @@ _MAX_SESSION_WARNINGS = 100
 
 def _warn(warnings: list[str], message: str) -> None:
     if len(warnings) < _MAX_WARNINGS_PER_ITEM:
-        warnings.append(message)
+        warnings.append(safe_text(message))
 
 
 def _warn_session(session: ScanSession, message: str) -> None:
@@ -32,7 +33,7 @@ def _warn_session(session: ScanSession, message: str) -> None:
 
     with session.lock:
         if len(session.warnings) < _MAX_SESSION_WARNINGS:
-            session.warnings.append(message)
+            session.warnings.append(safe_text(message))
 
 
 def measure_path(
@@ -244,7 +245,7 @@ class Scanner:
             for rule in rules:
                 if stop_reason is not None:
                     break
-                for candidate, root in self._candidates(rule, deadline, session):
+                for candidate, _root in self._candidates(rule, deadline, session):
                     if stop_reason is not None:
                         break
                     if session.cancel_event.is_set():
@@ -278,12 +279,11 @@ class Scanner:
                         stop_reason = "cancelled"
                         break
 
-                    try:
-                        relative = str(candidate.relative_to(root))
-                    except ValueError:
-                        relative = str(candidate)
+                    # Абсолютный путь, а не relative_to(root): у правила
+                    # может быть несколько корней, и одинаковые имена в них
+                    # не должны давать один и тот же item_id.
                     item_id = hashlib.sha256(
-                        f"{session.id}|{rule.id}|{relative}".encode(
+                        f"{session.id}|{rule.id}|{candidate}".encode(
                             "utf-8", errors="surrogateescape"
                         )
                     ).hexdigest()[:16]

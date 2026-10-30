@@ -8,6 +8,7 @@ import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 
+from .format import safe_text
 from .models import Progress, ScanSession, ScanStatus
 from .scanner import Scanner
 
@@ -63,7 +64,9 @@ class ScanManager:
             with session.lock:
                 session.status = ScanStatus.FAILED
                 session.progress.phase = "failed"
-                session.warnings.append(f"Внутренняя ошибка сканирования: {exc}")
+                session.warnings.append(
+                    safe_text(f"Внутренняя ошибка сканирования: {exc}")
+                )
                 if session.finished_at is None:
                     session.finished_at = self._clock()
 

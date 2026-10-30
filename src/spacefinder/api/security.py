@@ -16,8 +16,9 @@ async def require_token(
         str | None, Header(alias="X-Spacefinder-Token")
     ] = None,
 ) -> None:
-    expected = request.app.state.token
-    if x_spacefinder_token is None or not hmac.compare_digest(
-        x_spacefinder_token, expected
-    ):
+    expected = request.app.state.token.encode("ascii")
+    # compare_digest для str падает на не-ASCII заголовках. Сравниваем
+    # байты, чтобы произвольный заголовок давал 403, а не 500.
+    provided = (x_spacefinder_token or "").encode("utf-8", errors="surrogateescape")
+    if not hmac.compare_digest(provided, expected):
         raise ApiError(403, "unauthorized", "Неверный или отсутствующий токен")
