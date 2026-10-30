@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="spacefinder-token" content="__SPACEFINDER_TOKEN__">
+  <title>spaceFinder — очистка диска</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Перейти к содержимому</a>
+
+  <noscript>
+    <p class="banner">
+      Для работы spaceFinder нужен JavaScript. Включите его и перезагрузите страницу.
+    </p>
+  </noscript>
+
+  <header class="topbar">
+    <div>
+      <h1>spaceFinder</h1>
+      <p class="subtitle">Помощник очистки диска</p>
+    </div>
+    <button id="scan-btn" class="primary" type="button">Сканировать</button>
+  </header>
+
+  <main id="main">
+    <p id="dry-run-banner" class="banner" hidden>
+      Режим dry-run: приложение только показывает, что будет удалено.
+    </p>
+    <p id="error" class="error" role="alert" hidden></p>
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+
+    <section class="card" aria-labelledby="disk-title">
+      <h2 id="disk-title">Диск</h2>
+      <p id="disk-text">Загрузка…</p>
+      <div class="meter" id="disk-meter" role="progressbar"
+           aria-labelledby="disk-title" aria-valuemin="0" aria-valuemax="100"
+           aria-valuenow="0">
+        <span id="disk-fill"></span>
+      </div>
+    </section>
+
+    <section class="card" id="progress-card" aria-labelledby="progress-title" hidden>
+      <h2 id="progress-title">Сканирование</h2>
+      <p id="progress-text" aria-live="polite"></p>
+      <button id="cancel-btn" class="secondary" type="button">Отменить</button>
+    </section>
+
+    <section class="card" id="results-card" aria-labelledby="results-title" hidden>
+      <h2 id="results-title">Найдено</h2>
+      <p id="results-summary" aria-live="polite"></p>
+      <div id="groups"></div>
+    </section>
+
+    <section class="card" id="system-card" aria-labelledby="system-title" hidden>
+      <h2 id="system-title">Системные кэши</h2>
+      <p class="muted">
+        Эти пути требуют root-прав. Приложение не удаляет их само — скопируйте команду
+        и выполните в терминале.
+      </p>
+      <ul id="system-list" class="system-list"></ul>
+    </section>
+
+    <section class="card" aria-labelledby="history-title">
+      <div class="card-head">
+        <h2 id="history-title">История</h2>
+        <button id="history-btn" class="secondary" type="button">Показать</button>
+      </div>
+      <ul id="history-list" class="history-list"></ul>
+    </section>
+  </main>
+
+  <div class="selection-bar" id="selection-bar" hidden>
+    <span id="selection-text" aria-live="polite"></span>
+    <div class="selection-actions">
+      <button id="trash-btn" class="primary" type="button">Переместить в корзину</button>
+      <button id="permanent-btn" class="danger" type="button" hidden>Удалить навсегда</button>
+    </div>
+  </div>
+
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+    <form method="dialog">
+      <h2 id="confirm-title">Подтверждение</h2>
+      <p id="confirm-text"></p>
+      <ul id="confirm-list" class="confirm-list"></ul>
+      <label id="permanent-wrap" class="check-line" hidden>
+        <input type="checkbox" id="permanent-check">
+        Я понимаю, что восстановить нельзя
+      </label>
+      <div class="dialog-actions">
+        <button value="cancel" type="submit" class="secondary">Отмена</button>
+        <button value="ok" id="confirm-ok" type="submit" class="primary">Подтвердить</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
