@@ -319,6 +319,14 @@ function renderGroups(warnings = state.warnings) {
     const section = el("section", { class: "group", "aria-labelledby": `group-${rule.id}` });
     const head = el("div", { class: "group-head" });
     head.append(el("h3", { id: `group-${rule.id}` }, rule.title));
+    const category = rule.category || "junk";
+    head.append(
+      el(
+        "span",
+        { class: `category category-${category}` },
+        t(`category.${category}`, category),
+      ),
+    );
     head.append(
       el("span", { class: `risk risk-${rule.risk}` }, t(`risk.${rule.risk}`, rule.risk)),
     );

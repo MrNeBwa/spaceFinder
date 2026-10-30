@@ -195,11 +195,81 @@ class Scanner:
                                 st = candidate.lstat()
                             except OSError:
                                 continue
-                            if not stat.S_ISREG(st.st_mode):
+                            if stat.S_ISLNK(st.st_mode):
+                                continue
+                            if stat.S_ISDIR(st.st_mode):
+                                if os.path.ismount(candidate):
+                                    _warn_session(
+                                        session,
+                                        f"Точка монтирования пропущена: {candidate}",
+                                    )
+                                    continue
+                            elif not stat.S_ISREG(st.st_mode):
                                 continue
                             if not self._old_enough(st, rule.min_age_days):
                                 continue
                             yield candidate, root
+                    except OSError:
+                        continue
+            elif rule.selector == "module_dirs":
+                # Один обход дерева вместо глоба на каждый шаблон: ищем
+                # каталоги зависимостей по имени и не спускаемся внутрь них.
+                names = set(rule.patterns)
+
+                def on_walk_error(exc: OSError) -> None:
+                    _warn_session(
+                        session,
+                        f"Нет доступа: {exc.filename} ({exc.strerror})",
+                    )
+
+                for root in rule.roots:
+                    if root.is_symlink() or not root.is_dir():
+                        continue
+                    try:
+                        for current, dirnames, _files in os.walk(
+                            root,
+                            topdown=True,
+                            followlinks=False,
+                            onerror=on_walk_error,
+                        ):
+                            if session.cancel_event.is_set():
+                                return
+                            if deadline is not None and self._clock() > deadline:
+                                return
+                            current_path = Path(current)
+                            kept: list[str] = []
+                            for name in dirnames:
+                                child = current_path / name
+                                try:
+                                    child_stat = child.lstat()
+                                except OSError:
+                                    continue
+                                if stat.S_ISLNK(child_stat.st_mode):
+                                    continue
+                                if os.path.ismount(child):
+                                    _warn_session(
+                                        session,
+                                        f"Точка монтирования пропущена: {child}",
+                                    )
+                                    continue
+                                kept.append(name)
+                            dirnames[:] = kept
+                            for name in list(dirnames):
+                                if name not in names:
+                                    continue
+                                candidate = current_path / name
+                                # Вложенные node_modules/.venv не нужны: они
+                                # входят в размер уже найденного каталога.
+                                dirnames.remove(name)
+                                try:
+                                    st = candidate.lstat()
+                                except OSError:
+                                    continue
+                                if not stat.S_ISDIR(st.st_mode):
+                                    continue
+                                if not self._old_enough(st, rule.min_age_days):
+                                    continue
+                                yield candidate, root
                     except OSError:
                         continue
 
@@ -283,6 +353,8 @@ class Scanner:
                     if deadline is not None and self._clock() > deadline:
                         stop_reason = "timeout"
                         break
+                    if disk_bytes < rule.min_size_bytes:
+                        continue
 
                     # Абсолютный путь, а не relative_to(root): у правила
                     # может быть несколько корней, и одинаковые имена в них

@@ -10,6 +10,7 @@ from ..core.models import (
     DeleteMode,
     DeleteStatus,
     RiskLevel,
+    RuleCategory,
     ScanStatus,
 )
 
@@ -19,6 +20,7 @@ class RuleOut(BaseModel):
     title: str
     description: str
     risk: RiskLevel
+    category: RuleCategory
     default_selected: bool
     requires_privilege: bool
     commands: list[str] = Field(default_factory=list)

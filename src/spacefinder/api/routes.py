@@ -86,6 +86,7 @@ def get_rules(request: Request) -> list[RuleOut]:
             title=rule.title,
             description=rule.description,
             risk=rule.risk,
+            category=rule.category,
             default_selected=rule.default_selected,
             requires_privilege=rule.requires_privilege,
             commands=list(rule.info_commands),

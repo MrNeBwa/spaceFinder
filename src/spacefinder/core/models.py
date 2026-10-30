@@ -15,6 +15,14 @@ class RiskLevel(StrEnum):
     HIGH = "high"
 
 
+class RuleCategory(StrEnum):
+    """Как показывать правило в интерфейсе."""
+
+    JUNK = "junk"
+    APPS = "apps"
+    SYSTEM = "system"
+
+
 class ItemKind(StrEnum):
     FILE = "file"
     DIRECTORY = "directory"
@@ -42,7 +50,7 @@ class DeleteStatus(StrEnum):
     FAILED = "failed"
 
 
-Selector = Literal["children", "glob", "none"]
+Selector = Literal["children", "glob", "module_dirs", "none"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,8 +66,19 @@ class ScanRule:
     selector: Selector = "children"
     patterns: tuple[str, ...] = ()
     min_age_days: int = 0
+    # Показывать только пункты не меньше этого размера (занято на диске).
+    # Для «крупных приложений» это отсекает мелочь, но не мешает удалять
+    # найденное: порог применяется только к выдаче скана.
+    min_size_bytes: int = 0
+    category: RuleCategory = RuleCategory.JUNK
     requires_privilege: bool = False
     info_commands: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.min_size_bytes < 0:
+            raise ValueError("min_size_bytes не может быть отрицательным")
+        if self.selector == "module_dirs" and not self.patterns:
+            raise ValueError("module_dirs требует хотя бы одно имя каталога")
 
 
 @dataclass(slots=True)

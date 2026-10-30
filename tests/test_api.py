@@ -43,9 +43,12 @@ def test_config_rules_and_disk(client: TestClient) -> None:
 
     rules = client.get("/api/rules", headers=auth(client))
     assert rules.status_code == 200
-    ids = {rule["id"] for rule in rules.json()}
+    payload = rules.json()
+    ids = {rule["id"] for rule in payload}
     assert "user_cache" in ids
     assert "system_info" in ids
+    assert {"large_caches", "app_data", "dev_modules", "system_apps"} <= ids
+    assert {rule["category"] for rule in payload} >= {"junk", "apps", "system"}
 
     disk = client.get("/api/disk", headers=auth(client))
     assert disk.status_code == 200

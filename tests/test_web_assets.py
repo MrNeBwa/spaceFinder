@@ -34,6 +34,7 @@ def test_translation_keys_used_by_ui_exist() -> None:
 
     assert used
     assert used <= set(translations)
+    assert {"category.junk", "category.apps", "category.system"} <= set(translations)
 
 
 def test_styles_have_focus_and_reduced_motion() -> None:

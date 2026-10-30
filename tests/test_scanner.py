@@ -318,6 +318,111 @@ def test_session_warnings_are_capped(
     assert len(session.warnings) <= 100
 
 
+def test_min_size_filters_small_candidates(tmp_path: Path) -> None:
+    cache = tmp_path / ".cache"
+    small = cache / "small"
+    big = cache / "big"
+    small.mkdir(parents=True)
+    big.mkdir()
+    (small / "blob").write_bytes(b"x" * 100)
+    (big / "blob").write_bytes(b"x" * 20_000)
+
+    session = run_scan((make_rule("cache", cache, min_size_bytes=10_000),))
+
+    assert [item.path.name for item in session.items.values()] == ["big"]
+
+
+def test_glob_rule_can_match_directories(tmp_path: Path) -> None:
+    projects = tmp_path / "Projects"
+    modules = projects / "app" / "node_modules"
+    modules.mkdir(parents=True)
+    (modules / "package").mkdir()
+
+    rule = make_rule(
+        "modules",
+        projects,
+        selector="glob",
+        patterns=("*/node_modules",),
+    )
+    session = run_scan((rule,))
+
+    assert [item.path for item in session.items.values()] == [modules]
+
+
+def test_module_dirs_finds_matches_and_prunes_nested(tmp_path: Path) -> None:
+    projects = tmp_path / "Projects"
+    node_modules = projects / "app" / "node_modules"
+    nested = node_modules / "dep" / "node_modules"
+    nested.mkdir(parents=True)
+    venv = projects / "app" / ".venv"
+    venv.mkdir()
+    (venv / "bin").mkdir()
+
+    rule = make_rule(
+        "modules",
+        projects,
+        selector="module_dirs",
+        patterns=("node_modules", ".venv"),
+    )
+    session = run_scan((rule,))
+
+    assert {item.path for item in session.items.values()} == {node_modules, venv}
+
+
+def test_module_dirs_skips_symlinked_directories(tmp_path: Path) -> None:
+    projects = tmp_path / "Projects"
+    projects.mkdir()
+    outside = tmp_path / "outside"
+    (outside / "node_modules").mkdir(parents=True)
+    (projects / "link").symlink_to(outside, target_is_directory=True)
+
+    rule = make_rule(
+        "modules",
+        projects,
+        selector="module_dirs",
+        patterns=("node_modules",),
+    )
+    session = run_scan((rule,))
+
+    assert session.items == {}
+
+
+def test_module_dirs_permission_error_becomes_warning(tmp_path: Path) -> None:
+    if os.geteuid() == 0:
+        pytest.skip("root игнорирует права доступа")
+
+    projects = tmp_path / "Projects"
+    locked = projects / "locked"
+    (locked / "node_modules").mkdir(parents=True)
+    os.chmod(locked, 0o000)
+
+    rule = make_rule(
+        "modules",
+        projects,
+        selector="module_dirs",
+        patterns=("node_modules",),
+    )
+    try:
+        session = run_scan((rule,))
+    finally:
+        os.chmod(locked, 0o700)
+
+    assert any("Нет доступа" in warning for warning in session.warnings)
+
+
+def test_module_dirs_missing_root_is_not_an_error(tmp_path: Path) -> None:
+    rule = make_rule(
+        "modules",
+        tmp_path / "missing",
+        selector="module_dirs",
+        patterns=("node_modules",),
+    )
+    session = run_scan((rule,))
+
+    assert session.status is ScanStatus.DONE
+    assert session.items == {}
+
+
 def test_timeout_marks_results_truncated(tmp_path: Path) -> None:
     cache = tmp_path / ".cache"
     (cache / "pip").mkdir(parents=True)
